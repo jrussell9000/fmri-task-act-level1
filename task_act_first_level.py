@@ -50,7 +50,11 @@ OUTPUTS:
 '''
 
 # Imports
-import os, shutil, sys, subprocess, argparse
+import os
+import shutil
+import sys
+import subprocess
+import argparse
 import numpy as np
 import pandas as pd
 import time
@@ -72,23 +76,23 @@ def valid_task_conds(conds_string):
         conds = conds_string.split(',')
         conds_s = [cond.strip() for cond in conds]
         for cond in conds_s:
-            if cond is None or cond=="":
+            if cond is None or cond == "":
                 raise argparse.ArgumentError(f"[ERROR] Use list-string notation (e.g. 'cond1label,cond2label...') for --cond_labels and --contrast_labels.")
         return conds_s
     except:
         raise argparse.ArgumentError(f"[ERROR] Use list-string notation (e.g. 'cond1label,cond2label...') for --cond_labels.")
-    
+
 def valid_stat_type(stat_string):
-    valid_types=['z', 't', 'r']
+    valid_types = ['z', 't', 'r']
     if stat_string not in valid_types:
         raise argparse.ArgumentError(f"[ERROR] --stat_type must be 'z', 't', or 'r'")
 
 def valid_ave_type(ave_string):
-    if ave_string not in ["mean","median"]:
+    if ave_string not in ["mean", "median"]:
         raise argparse.ArgumentTypeError(f"[ERROR] '{ave_string} must be one of ['mean', 'median'].")
     return ave_string
 
-def valid_contrast_functions(contrast_list,contrast_labs_list, cond_list, out_list):
+def valid_contrast_functions(contrast_list, contrast_labs_list, cond_list, out_list):
 
     # Check everything in out_list is in cond_list or contrast_labs_list
     if out_list is not None:
@@ -121,7 +125,7 @@ def valid_contrast_functions(contrast_list,contrast_labs_list, cond_list, out_li
                 if item not in cond_list:
                     print(f"[ERROR] {contrast} contains a condition not in --cond_labels")
                     sys.exit()
-            
+
             # Check that all coefficients can be cast to float
             for item in coefs:
                 try:
@@ -130,16 +134,16 @@ def valid_contrast_functions(contrast_list,contrast_labs_list, cond_list, out_li
                     print(f"[ERROR] {contrast} contains invalid coefficients.")
                     sys.exit()
 
-            out.append({'COEFS':coefs,'CONDS':conds,'OPERATORS':opers})
+            out.append({'COEFS': coefs, 'CONDS': conds, 'OPERATORS': opers})
         return out
     except:
         print(f"[ERROR] At least one contrast in --contrast_functions was improperly formatted.")
         print(f"        Assumes a stricly linear function (e.g. 1*COND1-1*COND2)")
         sys.exit()
 
-def validate_template(scan_string,template_string,out_string,force_diff_atlas):
+def validate_template(scan_string, template_string, out_string, force_diff_atlas):
     try:
-        template_info_out = subprocess.run(['3dinfo',f"{template_string}"],capture_output=True,text=True,check=True)
+        template_info_out = subprocess.run(['3dinfo', f"{template_string}"], capture_output=True, text=True, check=True)
     except:
         print(f"[ERROR] Could not open --template_path {template_string} with AFNI's 3dinfo - please check your template.")
         sys.exit()
@@ -150,26 +154,26 @@ def validate_template(scan_string,template_string,out_string,force_diff_atlas):
     upper = None
     for i, entry in enumerate(template_info_out):
         if entry == "to":
-            upper = template_info_out[i+1]
+            upper = template_info_out[i + 1]
             break
 
     atlas = None
     for i, entry in enumerate(template_info_out):
         if entry == "Space:":
-            atlas = template_info_out[i+1]
+            atlas = template_info_out[i + 1]
             break
 
     orient = None
     for i, entry in enumerate(template_info_out):
         if entry == "[-orient":
-            orient = template_info_out[i+1]
+            orient = template_info_out[i + 1]
             orient = orient.replace("]", "")
             break
-    
+
     spacing = None
     for i, entry in enumerate(template_info_out):
         if entry == "-step-":
-            spacing = template_info_out[i+1]
+            spacing = template_info_out[i + 1]
             break
 
     if upper is None or orient is None or spacing is None or atlas is None:
@@ -189,10 +193,10 @@ def validate_template(scan_string,template_string,out_string,force_diff_atlas):
     # If everything else is valid with the template, check for matching atlas space, orientation, and grid spacing
     # If orientation or grid spacing do not match, resample the template to the raw data
     try:
-        scan_info_out = subprocess.run(['3dinfo',f"{scan_string}"],capture_output=True,text=True,check=True)
+        scan_info_out = subprocess.run(['3dinfo', f"{scan_string}"], capture_output=True, text=True, check=True)
     except:
         print(f"[ERROR] Could not open --scan_path {scan_string} with AFNI's 3dinfo - please check your scan.")
-        sys.exit()    
+        sys.exit()
 
     scan_info_out = scan_info_out.stdout
     scan_info_out = scan_info_out.split()
@@ -200,20 +204,20 @@ def validate_template(scan_string,template_string,out_string,force_diff_atlas):
     atlas_scan = None
     for i, entry in enumerate(scan_info_out):
         if entry == "Space:":
-            atlas_scan = scan_info_out[i+1]
+            atlas_scan = scan_info_out[i + 1]
             break
 
     orient_scan = None
     for i, entry in enumerate(scan_info_out):
         if entry == "[-orient":
-            orient_scan = scan_info_out[i+1]
+            orient_scan = scan_info_out[i + 1]
             orient_scan = orient_scan.replace("]", "")
             break
-    
+
     spacing_scan = None
     for i, entry in enumerate(scan_info_out):
         if entry == "-step-":
-            spacing_scan = scan_info_out[i+1]
+            spacing_scan = scan_info_out[i + 1]
             break
     print(f"[INFO] Specs for scan {scan_string} and template {template_string}")
     print(f"       - orient template: {orient}")
@@ -237,12 +241,12 @@ def validate_template(scan_string,template_string,out_string,force_diff_atlas):
     if orient != orient_scan or spacing != spacing_scan:
         print(f"[WARNING] Orientation and/or grid spacing for --scan_path {scan_string} and --template_path {template_string} do not match.")
         print(f"[INFO] Resampling --template_path {template_string} to match --scan_path {scan_string}.")
-        template_split=template_string.split("/")
-        template_file=template_split[(len(template_split)-1)]
-        template_file_pre=template_file.replace(".nii.gz", "")
-        template_file_pre=template_file_pre.replace(".nii", "")
+        template_split = template_string.split("/")
+        template_file = template_split[(len(template_split) - 1)]
+        template_file_pre = template_file.replace(".nii.gz", "")
+        template_file_pre = template_file_pre.replace(".nii", "")
         if not os.path.exists(f"{out_string}/{template_file_pre}_resampled.nii.gz"):
-            resamp_command = ["3dresample","-master",f"{scan_string}","-input",f"{template_string}","-prefix",f"{out_string}/{template_file_pre}_resampled.nii.gz"]
+            resamp_command = ["3dresample", "-master", f"{scan_string}", "-input", f"{template_string}", "-prefix", f"{out_string}/{template_file_pre}_resampled.nii.gz"]
             subprocess.run(resamp_command)
             if os.path.exists(f"{out_string}/{template_file_pre}_resampled.nii.gz"):
                 print(f"[INFO] Sucessfully resampled template; saved to {out_string}/{template_file_pre}_resampled.nii.gz")
@@ -251,8 +255,8 @@ def validate_template(scan_string,template_string,out_string,force_diff_atlas):
                 print(f"[ERROR] Could not resample --template_path {template_string}. Please manually resample and try again.")
                 sys.exit()
         else:
-           print(f"[INFO] Resampled template {out_string}/{template_file_pre}_resampled.nii.gz already exists.")
-           return f"{out_string}/{template_file_pre}_resampled.nii.gz"
+            print(f"[INFO] Resampled template {out_string}/{template_file_pre}_resampled.nii.gz already exists.")
+            return f"{out_string}/{template_file_pre}_resampled.nii.gz"
     else:
         return f"{template_string}"
 
@@ -273,12 +277,12 @@ def remove_files_from_dir(dir_string):
                 print(f"Error deleting '{item_path}': {e}")
 
 def get_stim_data(args):
-    stim_df = pd.read_csv(args.task_timing_path,sep=',')
-    for curr_col in ["CONDITION","ONSET","DURATION"]:
+    stim_df = pd.read_csv(args.task_timing_path, sep=',')
+    for curr_col in ["CONDITION", "ONSET", "DURATION"]:
         if curr_col not in stim_df.columns.to_list():
             print(f"[ERROR] --task_timing_path file did not contain necessary columns 'CONDITION', 'ONSET', and 'DURATION'")
             sys.exit()
-    sorted_df = stim_df.sort_values(by='ONSET',ascending=True)
+    sorted_df = stim_df.sort_values(by='ONSET', ascending=True)
 
     # Check conditions to generate activation for exist in the timing file
     checks = [True if cond in np.unique(sorted_df['CONDITION']) else False for cond in args.cond_labels]
@@ -288,51 +292,51 @@ def get_stim_data(args):
 
     # Create individual (run-concatenated) timing files
     for cond in np.unique(sorted_df['CONDITION']):
-        cond_df = sorted_df[sorted_df['CONDITION']==cond]
+        cond_df = sorted_df[sorted_df['CONDITION'] == cond]
         if cond in args.cond_labels:
             if os.path.exists(f"{args.out_dir}/{args.out_file_pre}_concat_{cond}_onsets.txt"):
                 print(f"[INFO] {args.out_dir}/{args.out_file_pre}_concat_{cond}_onsets.txt already exists.")
             else:
-                cond_df['ONSET'].to_csv(f"{args.out_dir}/{args.out_file_pre}_concat_{cond}_onsets.txt",header=False,index=False,sep='\n')
+                cond_df['ONSET'].to_csv(f"{args.out_dir}/{args.out_file_pre}_concat_{cond}_onsets.txt", header=False, index=False, sep='\n')
                 print(f"[INFO] Created {args.out_dir}/{args.out_file_pre}_concat_{cond}_onsets.txt")
 
     return sorted_df.reset_index()
 
-def run_first_level(stim_data,args):
+def run_first_level(stim_data, args):
 
     if not os.path.exists(f"{args.out_dir}/{args.out_file_pre}_act_bucket_stats.nii.gz"):
         # Set-up base command, including temporal detrending, frame censors, and motion regressors
-        decon_command = ["3dDeconvolve", "-quiet", 
-                        "-input", f"{args.scan_path}",
-                        "-polort", "A",
-                        "-censor", f"{args.censor_path}",
-                        "-ortvec", f"{args.motion_path}", "motion_regressors",
-                        "-num_stimts", f"{len(args.cond_labels)}"]
-        
+        decon_command = ["3dDeconvolve", "-quiet",
+                         "-input", f"{args.scan_path}",
+                         "-polort", "A",
+                         "-censor", f"{args.censor_path}",
+                         "-ortvec", f"{args.motion_path}", "motion_regressors",
+                         "-num_stimts", f"{len(args.cond_labels)}"]
+
         # Iteratively add stim timing for conditions NOT included in beta series
         for i, cond in enumerate(args.cond_labels):
-                mean_dur = np.mean(stim_data[stim_data['CONDITION']==cond]['DURATION'])
-                decon_command.extend(["-stim_times",f"{i+1}",f"{args.out_dir}/{args.out_file_pre}_concat_{cond}_onsets.txt",
-                                     f"GAM(8.6,.547,{mean_dur})", "-stim_label",f"{i+1}",f"{cond}"])
-        
+            mean_dur = np.mean(stim_data[stim_data['CONDITION'] == cond]['DURATION'])
+            decon_command.extend(["-stim_times", f"{i + 1}", f"{args.out_dir}/{args.out_file_pre}_concat_{cond}_onsets.txt",
+                                 f"GAM(8.6,.547,{mean_dur})", "-stim_label", f"{i + 1}", f"{cond}"])
+
         # Iteratively add contrasts
         for i, cont in enumerate(args.contrast_functions):
             to_extend = ["-gltsym"]
-            sym_eq="SYM:"
+            sym_eq = "SYM:"
             for i in range(len(cont["COEFS"])):
                 sym_eq = f"{sym_eq} {cont["COEFS"][i]}*{cont["CONDS"][i]}"
-                if i != (len(cont['COEFS'])-1):
+                if i != (len(cont['COEFS']) - 1):
                     sym_eq = f"{sym_eq} {cont["OPERATORS"][i]}"
             to_extend.append(sym_eq)
             to_extend.append("-glt_label")
-            to_extend.append(f"{i+1}")
+            to_extend.append(f"{i + 1}")
             to_extend.append(f"{args.contrast_labels[i]}")
             decon_command.extend(to_extend)
 
         # Add statistics output
-        decon_command.extend(["-fout","-rout","-tout",
-                    "-bucket",f"{args.out_dir}/{args.out_file_pre}_act_bucket_stats.nii.gz",
-                    "-jobs",f"{args.num_cores}"])
+        decon_command.extend(["-fout", "-rout", "-tout",
+                              "-bucket", f"{args.out_dir}/{args.out_file_pre}_act_bucket_stats.nii.gz",
+                              "-jobs", f"{args.num_cores}"])
 
         # Run command and be sure we have output
         subprocess.run(decon_command)
@@ -351,7 +355,7 @@ def save_out_effects(args):
     # Go through --out_cond_labels, get the corresponding subbrik from the bucket stats file
     # Save each to its own file
     try:
-        bucket_info = subprocess.run(['3dinfo','-subbrick_info',f"{args.out_dir}/{args.out_file_pre}_act_bucket_stats.nii.gz"],capture_output=True,text=True,check=True)
+        bucket_info = subprocess.run(['3dinfo', '-subbrick_info', f"{args.out_dir}/{args.out_file_pre}_act_bucket_stats.nii.gz"], capture_output=True, text=True, check=True)
     except:
         print(f"[ERROR] Could not open {args.out_dir}/{args.out_file_pre}_act_bucket_stats.nii.gz with AFNI's 3dinfo - check your first-level outputs.")
         sys.exit()
@@ -364,7 +368,7 @@ def save_out_effects(args):
             for i, substr in enumerate(bucket_split):
                 if curr_cond in substr and stat_string in substr:
                     try:
-                        out_sub_brik_indx = int(bucket_split[i-1][1:])
+                        out_sub_brik_indx = int(bucket_split[i - 1][1:])
                         break
                     except:
                         print(f"[ERROR] Could not find appropriate bucket subbrik for condition {curr_cond} in {args.out_dir}/{args.out_file_pre}_act_bucket_stats.nii.gz")
@@ -373,7 +377,7 @@ def save_out_effects(args):
                 print(f"[ERROR] Could not find appropriate bucket subbrik for condition {curr_cond} in {args.out_dir}/{args.out_file_pre}_act_bucket_stats.nii.gz")
                 sys.exit()
             else:
-                calc_cmd = ["3dcalc","-a", f"{args.out_dir}/{args.out_file_pre}_act_bucket_stats.nii.gz'[{out_sub_brik_indx}]'",
+                calc_cmd = ["3dcalc", "-a", f"{args.out_dir}/{args.out_file_pre}_act_bucket_stats.nii.gz'[{out_sub_brik_indx}]'",
                             "-expr", "a", "-prefix", f"{args.out_dir}/{args.out_file_pre}_act_{curr_cond}_{args.out_stat}.nii.gz"]
                 subprocess.run(calc_cmd)
                 if not os.path.exists(f"{args.out_dir}/{args.out_file_pre}_act_{curr_cond}_{args.out_stat}.nii.gz"):
@@ -383,26 +387,26 @@ def save_out_effects(args):
             print(f"[INFO] {args.out_file_pre}_act_{curr_cond}_{args.out_stat}.nii.gz already exists (skipping).")
 
 def extract_effects(args):
-    
+
     for curr_cond in args.out_cond_labels:
         if not os.path.exists(f"{args.out_dir}/{args.out_file_pre}_act_{curr_cond}_{args.out_stat}_{args.template_name}.csv"):
             try:
-                extract_cmd = ["3dROIstats", f"-nz{args.average_type}", "-mask", f"{args.template_path}",f"{args.out_dir}/{args.out_file_pre}_act_{curr_cond}_{args.out_stat}.nii.gz"]
-                extract_out = subprocess.run(extract_cmd,capture_output=True,text=True,check=True).stdout
-                out_df = pd.read_csv(StringIO(extract_out),sep='\t')
+                extract_cmd = ["3dROIstats", f"-nz{args.average_type}", "-mask", f"{args.template_path}", f"{args.out_dir}/{args.out_file_pre}_act_{curr_cond}_{args.out_stat}.nii.gz"]
+                extract_out = subprocess.run(extract_cmd, capture_output=True, text=True, check=True).stdout
+                out_df = pd.read_csv(StringIO(extract_out), sep='\t')
             except:
                 print(f"[ERROR] Could not extract {curr_cond} from {args.out_dir}/{args.out_file_pre}_act_bucket_stats.nii.gz with AFNI's 3dROIstats.")
                 sys.exit()
-            
-            if args.out_stat=="median":
+
+            if args.out_stat == "median":
                 ave_type_flag = "NZMed"
             else:
                 ave_type_flag = "NZMean"
 
             cols_to_keep = [colname for colname in out_df.columns if ave_type_flag in colname]
             new_df = out_df[cols_to_keep]
-            new_df.rename(columns={oldname:f"ROI_{str(oldname).split(sep="_")[1]}" for oldname in new_df.columns}, inplace=True)
-            new_df.rename(index={0:f"{args.out_stat}"},inplace=True)
+            new_df.rename(columns={oldname: f"ROI_{str(oldname).split(sep="_")[1]}" for oldname in new_df.columns}, inplace=True)
+            new_df.rename(index={0: f"{args.out_stat}"}, inplace=True)
 
             new_df.to_csv(f"{args.out_dir}/{args.out_file_pre}_act_{curr_cond}_{args.out_stat}_{args.template_name}.csv")
             if os.path.exists(f"{args.out_dir}/{args.out_file_pre}_act_{curr_cond}_{args.out_stat}_{args.template_name}.csv"):
@@ -438,7 +442,7 @@ def main():
     parser.add_argument("--out_stat", type=valid_stat_type, required=False)
     parser.add_argument("--contrast_labels", type=valid_task_conds, required=False)
     parser.add_argument("--contrast_functions", type=valid_task_conds, required=False)
-    parser.add_argument("--extract", type='store_true', required=False)
+    parser.add_argument("--extract", action='store_true', required=False)
     parser.add_argument("--template_name", type=str, required=False)
     parser.add_argument("--template_path", type=file_path_exists, required=False)
     parser.add_argument("--force_diff_atlas", action='store_true', required=False)
@@ -457,7 +461,7 @@ def main():
         if args.contrast_functions is not None:
             print(f"[ERROR] --contrast_labels must exist if --contrast_functions exist.")
             sys.exit()
-    args.contrast_functions = valid_contrast_functions(args.contrast_functions,args.contrast_labels,args.cond_labels,args.out_cond_labels)
+    args.contrast_functions = valid_contrast_functions(args.contrast_functions, args.contrast_labels, args.cond_labels, args.out_cond_labels)
 
     # Check for out_stat if out_cond_labels exists
     if args.out_cond_labels is not None:
@@ -473,14 +477,14 @@ def main():
 
         # Checks for extraction
         if args.template_name is None:
-                parser.error("[ERROR] --template_name must be provided if --extract is present.")
-                sys.exit()
+            parser.error("[ERROR] --template_name must be provided if --extract is present.")
+            sys.exit()
         if args.template_path is None:
             parser.error(f"[ERROR] --extract requires an ROI set (.nii) be provided to --template_path.")
             sys.exit()
         else:
             # Check for valid template
-            args.template_path = validate_template(args.scan_path,args.template_path,args.out_dir,args.force_diff_atlas)
+            args.template_path = validate_template(args.scan_path, args.template_path, args.out_dir, args.force_diff_atlas)
         print("[INFO] Extracting parcellated (ROI-based) activation matrices after generating voxelwise maps.")
         # Check if average type provided
         if args.average_type is None:
@@ -502,7 +506,7 @@ def main():
     stim_data = get_stim_data(args)
 
     # Run activation first-level analysis
-    run_first_level(stim_data,args)
+    run_first_level(stim_data, args)
 
     # Save specified output effects to their own file
     if args.out_cond_labels is not None:
@@ -514,6 +518,7 @@ def main():
 
     # Display total runtime
     print(f"Total runtime: {time.time() - start_time}")
-    
+
+
 if __name__ == "__main__":
     main()
