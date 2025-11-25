@@ -446,7 +446,7 @@ def main():
     parser.add_argument("--template_name", type=str, required=False)
     parser.add_argument("--template_path", type=file_path_exists, required=False)
     parser.add_argument("--force_diff_atlas", action='store_true', required=False)
-    parser.add_argument("--average_type", action='valid_ave_type', required=False)
+    parser.add_argument("--average_type", type=valid_ave_type, required=False)
 
     args = parser.parse_args()
     if args.force_diff_atlas is None:
